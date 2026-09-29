@@ -3,8 +3,6 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-#include <functional>
-
 #include "Config.h"
 #include "PinMap.h"
 
@@ -19,16 +17,14 @@ public:
   void setAllRelays(bool state);
   void selfTestRelays();
   void getAllRelayStates(bool states[NUM_RELAYS]) const;
-  void setOnStateChangedCallback(std::function<void()> cb);
 
 private:
   bool relayStates[NUM_RELAYS];
   Preferences preferences;
-  std::function<void()> onStateChanged;
 
   void applyHardwarePinState(uint8_t index, bool logicalState);
   void saveRelayStateToNVS(uint8_t index, bool state);
   bool loadRelayStateFromNVS(uint8_t index) const;
 };
 
-#endif
+#endif // RELAY_MANAGER_H

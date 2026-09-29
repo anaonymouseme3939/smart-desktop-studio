@@ -1,40 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+name: smart_desktop_studio
+description: Smart Desktop Studio mobile control app.
+publish_to: 'none'
+version: 1.0.0+1
 
-import 'services/network_manager_service.dart';
-import 'screens/home_screen.dart';
+environment:
+  sdk: '>=3.3.0 <4.0.0'
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => NetworkManagerService(),
-      child: const SmartDesktopApp(),
-    ),
-  );
-}
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.0
+  provider: ^6.1.2
 
-class SmartDesktopApp extends StatelessWidget {
-  const SmartDesktopApp({super.key});
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Smart Desktop Studio',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        cardTheme: CardTheme(
-          color: Colors.grey[900],
-          elevation: 4,
-        ),
-      ),
-      home: const HomeScreen(),
-    );
-  }
-}
+flutter:
+  uses-material-design: true

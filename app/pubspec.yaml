@@ -1,24 +1,50 @@
-name: smart_desktop_studio
-description: Smart Desktop Studio Flutter app for ESP32 control
-publish_to: 'none'
+#include "Config.h"
+#include "PinMap.h"
+#include "RelayManager.h"
+#include "LEDController.h"
+#include "AudioEngine.h"
+#include "BluetoothServer.h"
+#include "StudioNetworkManager.h"
 
-version: 1.0.0+1
+RelayManager relayManager;
+LEDController ledController;
+AudioEngine audioEngine;
+StudioNetworkManager networkManager;
+BluetoothServer bluetoothServer(relayManager, ledController);
 
-environment:
-  sdk: '>=3.0.0 <4.0.0'
+void onSystemStateChanged() {
+  // Placeholder for telemetry or state propagation.
+}
 
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.6
-  provider: ^6.1.2
-  flutter_bluetooth_serial: ^0.4.0
-  web_socket_channel: ^2.4.4
+void setup() {
+  Serial.begin(SERIAL_BAUD_RATE);
+  pinMode(STATUS_LED_PIN, OUTPUT);
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
+  relayManager.begin();
+  relayManager.setOnStateChangedCallback(onSystemStateChanged);
 
-flutter:
-  uses-material-design: true
+  ledController.begin();
+  ledController.setMode(MODE_HYPERION);
+
+  audioEngine.begin();
+  bluetoothServer.begin();
+  networkManager.begin();
+
+  relayManager.selfTestRelays();
+}
+
+void loop() {
+  bluetoothServer.update();
+  networkManager.update();
+  audioEngine.update();
+  ledController.update(audioEngine.getVuLevel());
+
+  if (WiFi.status() == WL_CONNECTED) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+  } else {
+    digitalWrite(STATUS_LED_PIN, (millis() / 500) % 2 == 0 ? HIGH : LOW);
+  }
+
+  delay(10);
+}
+

@@ -1,0 +1,124 @@
+#include "StudioNetworkManager.h"
+
+StudioNetworkManager::StudioNetworkManager()
+  : websocketServer(WEBSOCKET_PORT),
+    softApSsid(DEFAULT_SOFTAP_SSID),
+    softApPass(DEFAULT_SOFTAP_PASS),
+    connected(false) {
+}
+
+void StudioNetworkManager::begin() {
+  loadCredentials();
+  WiFi.mode(WIFI_STA);
+  if (!connectToWifi(ssid1, pass1)) {
+    if (!connectToWifi(ssid2, pass2)) {
+      startSoftAP();
+    }
+  }
+
+  websocketServer.begin();
+  udp.begin(HYPERION_UDP_PORT);
+}
+
+void StudioNetworkManager::update() {
+  handleIncomingUdp();
+
+  WiFiClient newClient = websocketServer.available();
+  if (newClient) {
+    client = newClient;
+    String request = "";
+    while (newClient.connected() && newClient.available()) {
+      char ch = newClient.read();
+      request += ch;
+      if (request.indexOf("\r\n\r\n") != -1) {
+        break;
+      }
+    }
+
+    if (request.length() > 0) {
+      newClient.println("HTTP/1.1 101 Switching Protocols");
+      newClient.println("Upgrade: websocket");
+      newClient.println("Connection: Upgrade");
+      newClient.println("Sec-WebSocket-Accept: dGhlIHNhbXBsZSBub25jZQ==");
+      newClient.println();
+    }
+  }
+}
+
+void StudioNetworkManager::configureWiFi(const String& inSsid1, const String& inPass1, const String& inSsid2, const String& inPass2) {
+  ssid1 = inSsid1;
+  pass1 = inPass1;
+  ssid2 = inSsid2;
+  pass2 = inPass2;
+
+  preferences.begin("smartdesk", false);
+  preferences.putString("wifi1_ssid", ssid1);
+  preferences.putString("wifi1_pass", pass1);
+  preferences.putString("wifi2_ssid", ssid2);
+  preferences.putString("wifi2_pass", pass2);
+  preferences.end();
+}
+
+void StudioNetworkManager::startSoftAP() {
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(softApSsid.c_str(), softApPass.c_str());
+  connected = true;
+}
+
+bool StudioNetworkManager::isConnected() const {
+  return connected || WiFi.status() == WL_CONNECTED;
+}
+
+String StudioNetworkManager::getIpAddress() const {
+  if (WiFi.getMode() == WIFI_AP) {
+    return WiFi.softAPIP().toString();
+  }
+  return WiFi.localIP().toString();
+}
+
+String StudioNetworkManager::getConnectedSsid() const {
+  return WiFi.SSID();
+}
+
+void StudioNetworkManager::broadcastTelemetry(const String& telemetryJson) {
+  if (client.connected()) {
+    client.println(telemetryJson);
+  }
+}
+
+void StudioNetworkManager::loadCredentials() {
+  preferences.begin("smartdesk", false);
+  ssid1 = preferences.getString("wifi1_ssid", DEFAULT_WIFI1_SSID);
+  pass1 = preferences.getString("wifi1_pass", DEFAULT_WIFI1_PASS);
+  ssid2 = preferences.getString("wifi2_ssid", DEFAULT_WIFI2_SSID);
+  pass2 = preferences.getString("wifi2_pass", DEFAULT_WIFI2_PASS);
+  softApSsid = preferences.getString("ap_ssid", DEFAULT_SOFTAP_SSID);
+  softApPass = preferences.getString("ap_pass", DEFAULT_SOFTAP_PASS);
+  preferences.end();
+}
+
+bool StudioNetworkManager::connectToWifi(const String& ssid, const String& pass) {
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  const uint32_t start = millis();
+  while (millis() - start < WIFI_TIMEOUT_MS) {
+    if (WiFi.status() == WL_CONNECTED) {
+      connected = true;
+      return true;
+    }
+    delay(250);
+  }
+
+  return false;
+}
+
+void StudioNetworkManager::handleIncomingUdp() {
+  const int packetSize = udp.parsePacket();
+  if (packetSize <= 0) {
+    return;
+  }
+
+  uint8_t packet[NUM_LEDS * 3];
+  if (packetSize >= NUM_LEDS * 3) {
+    udp.read(packet, packetSize);
+  }
+}

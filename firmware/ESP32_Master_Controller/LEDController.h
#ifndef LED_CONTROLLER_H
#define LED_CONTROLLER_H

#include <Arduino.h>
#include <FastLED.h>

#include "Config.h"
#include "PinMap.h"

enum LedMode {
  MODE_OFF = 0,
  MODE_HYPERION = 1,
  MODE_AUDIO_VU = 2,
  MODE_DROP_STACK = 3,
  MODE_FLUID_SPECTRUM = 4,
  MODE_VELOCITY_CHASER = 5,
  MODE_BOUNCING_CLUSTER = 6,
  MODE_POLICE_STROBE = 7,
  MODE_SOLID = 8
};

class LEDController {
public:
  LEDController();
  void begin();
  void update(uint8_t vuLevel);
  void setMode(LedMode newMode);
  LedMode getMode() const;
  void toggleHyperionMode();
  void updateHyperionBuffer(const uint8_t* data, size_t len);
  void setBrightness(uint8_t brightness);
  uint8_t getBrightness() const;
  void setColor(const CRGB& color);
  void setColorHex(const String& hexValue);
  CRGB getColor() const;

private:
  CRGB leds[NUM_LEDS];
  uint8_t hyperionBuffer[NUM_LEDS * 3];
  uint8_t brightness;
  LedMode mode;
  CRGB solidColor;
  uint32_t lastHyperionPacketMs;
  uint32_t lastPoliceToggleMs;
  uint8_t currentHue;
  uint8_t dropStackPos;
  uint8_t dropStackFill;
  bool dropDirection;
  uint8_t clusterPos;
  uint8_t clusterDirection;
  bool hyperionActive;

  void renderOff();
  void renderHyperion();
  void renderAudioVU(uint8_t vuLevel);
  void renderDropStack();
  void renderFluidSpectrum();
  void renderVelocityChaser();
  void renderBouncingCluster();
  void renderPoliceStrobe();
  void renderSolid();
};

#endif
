@@ -1,0 +1,108 @@
+#include "RelayManager.h"
+
+RelayManager::RelayManager() {
+  for (uint8_t i = 0; i < NUM_RELAYS; ++i) {
+    relayStates[i] = false;
+  }
+}
+
+void RelayManager::begin() {
+  preferences.begin("smartdesk", false);
+
+  for (uint8_t i = 0; i < NUM_RELAYS; ++i) {
+    pinMode(PinMap::RELAY_PINS[i], OUTPUT);
+    relayStates[i] = loadRelayStateFromNVS(i);
+    applyHardwarePinState(i, relayStates[i]);
+  }
+
+  if (onStateChanged) {
+    onStateChanged();
+  }
+}
+
+void RelayManager::setRelayState(uint8_t index, bool state) {
+  if (index >= NUM_RELAYS) {
+    return;
+  }
+
+  relayStates[index] = state;
+  saveRelayStateToNVS(index, state);
+  applyHardwarePinState(index, state);
+
+  if (onStateChanged) {
+    onStateChanged();
+  }
+}
+
+bool RelayManager::getRelayState(uint8_t index) const {
+  if (index >= NUM_RELAYS) {
+    return false;
+  }
+  return relayStates[index];
+}
+
+void RelayManager::toggleRelay(uint8_t index) {
+  if (index >= NUM_RELAYS) {
+    return;
+  }
+  setRelayState(index, !relayStates[index]);
+}
+
+void RelayManager::toggleMasterRelays() {
+  bool anyOn = false;
+  for (uint8_t i = 0; i < NUM_RELAYS; ++i) {
+    if (relayStates[i]) {
+      anyOn = true;
+      break;
+    }
+  }
+
+  setAllRelays(!anyOn);
+}
+
+void RelayManager::setAllRelays(bool state) {
+  for (uint8_t i = 0; i < NUM_RELAYS; ++i) {
+    setRelayState(i, state);
+  }
+}
+
+void RelayManager::selfTestRelays() {
+  for (uint8_t i = 0; i < NUM_RELAYS; ++i) {
+    setRelayState(i, true);
+    delay(80);
+    setRelayState(i, false);
+    delay(40);
+  }
+}
+
+void RelayManager::getAllRelayStates(bool states[NUM_RELAYS]) const {
+  for (uint8_t i = 0; i < NUM_RELAYS; ++i) {
+    states[i] = relayStates[i];
+  }
+}
+
+void RelayManager::setOnStateChangedCallback(std::function<void()> cb) {
+  onStateChanged = cb;
+}
+
+void RelayManager::applyHardwarePinState(uint8_t index, bool logicalState) {
+  if (index >= NUM_RELAYS) {
+    return;
+  }
+
+  const bool activeLow = RELAY_ACTIVE_LOW;
+  const uint8_t pin = PinMap::RELAY_PINS[index];
+
+  // Active LOW relays: LOW = ON, HIGH = OFF
+  digitalWrite(pin, activeLow ? (logicalState ? LOW : HIGH) : (logicalState ? HIGH : LOW));
+}
+
+void RelayManager::saveRelayStateToNVS(uint8_t index, bool state) {
+  preferences.putUChar(("relay_" + String(index + 1)).c_str(), state ? 1 : 0);
+}
+
+bool RelayManager::loadRelayStateFromNVS(uint8_t index) const {
+  const String key = "relay_" + String(index + 1);
+  const uint8_t value = preferences.getUChar(key.c_str(), 0);
+  return value != 0;
+}

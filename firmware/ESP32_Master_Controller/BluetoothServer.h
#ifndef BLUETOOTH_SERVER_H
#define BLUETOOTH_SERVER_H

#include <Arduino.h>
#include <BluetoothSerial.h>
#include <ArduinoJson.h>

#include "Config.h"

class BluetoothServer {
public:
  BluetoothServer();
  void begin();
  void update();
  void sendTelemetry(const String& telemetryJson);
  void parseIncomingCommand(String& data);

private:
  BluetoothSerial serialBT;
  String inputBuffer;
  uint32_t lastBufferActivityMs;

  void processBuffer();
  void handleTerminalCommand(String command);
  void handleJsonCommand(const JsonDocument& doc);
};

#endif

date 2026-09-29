@@ -1,0 +1,81 @@
+#include "AudioEngine.h"
+
+AudioEngine::AudioEngine()
+  : sensitivity(DEFAULT_SENSITIVITY),
+    clapRelayMask(DEFAULT_CLAP_RELAY_MASK),
+    currentVU(0),
+    clapState(CLAP_IDLE),
+    firstClapTime(0),
+    lastPeakTime(0) {
+}
+
+void AudioEngine::begin() {
+  pinMode(PinMap::MICROPHONE_PIN, INPUT);
+  preferences.begin("smartdesk", false);
+
+  sensitivity = preferences.getUShort("mic_sens", DEFAULT_SENSITIVITY);
+  clapRelayMask = preferences.getUChar("clap_mask", DEFAULT_CLAP_RELAY_MASK);
+}
+
+void AudioEngine::update() {
+  uint32_t maxValue = 0;
+  uint32_t minValue = 4095;
+
+  for (uint16_t i = 0; i < AUDIO_SAMPLES_BUFFER; ++i) {
+    const uint16_t sample = analogRead(PinMap::MICROPHONE_PIN);
+    maxValue = max(maxValue, sample);
+    minValue = min(minValue, sample);
+  }
+
+  const uint16_t peakToPeak = maxValue - minValue;
+  currentVU = constrain(map(peakToPeak, 0, sensitivity, 0, 255), 0, 255);
+
+  const uint32_t now = millis();
+  const bool impulseDetected = peakToPeak > sensitivity * 0.75f;
+
+  if (clapState == CLAP_IDLE) {
+    if (impulseDetected && (now - lastPeakTime) < 15) {
+      clapState = CLAP_FIRST_DETECTED;
+      firstClapTime = now;
+    }
+  } else if (clapState == CLAP_FIRST_DETECTED) {
+    const uint32_t elapsed = now - firstClapTime;
+    if (elapsed < CLAP_ECHO_LOCKOUT_MS) {
+      // ignore reverberation
+    } else if (elapsed >= CLAP_WINDOW_MIN_MS && elapsed <= CLAP_WINDOW_MAX_MS && impulseDetected) {
+      clapState = CLAP_IDLE;
+    } else if (elapsed > CLAP_WINDOW_MAX_MS) {
+      clapState = CLAP_IDLE;
+    }
+  }
+
+  if (impulseDetected) {
+    lastPeakTime = now;
+  }
+}
+
+uint16_t AudioEngine::getSensitivity() const {
+  return sensitivity;
+}
+
+void AudioEngine::setSensitivity(uint16_t value) {
+  sensitivity = value;
+  preferences.putUShort("mic_sens", sensitivity);
+}
+
+uint8_t AudioEngine::getClapRelayMask() const {
+  return clapRelayMask;
+}
+
+void AudioEngine::setClapRelayMask(uint8_t mask) {
+  clapRelayMask = mask;
+  preferences.putUChar("clap_mask", clapRelayMask);
+}
+
+uint8_t AudioEngine::getCurrentVU() const {
+  return currentVU;
+}
+
+bool AudioEngine::detectImpulse(uint16_t rawPeak, uint32_t elapsedMs) {
+  return rawPeak > sensitivity && elapsedMs < 15;
+}

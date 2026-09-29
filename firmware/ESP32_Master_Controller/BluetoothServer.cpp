@@ -1,8 +1,5 @@
 #include "BluetoothServer.h"
 
-extern class RelayManager;
-extern class LEDController;
-
 BluetoothServer::BluetoothServer() : lastBufferActivityMs(0) {}
 
 void BluetoothServer::begin() {
@@ -11,21 +8,16 @@ void BluetoothServer::begin() {
 }
 
 void BluetoothServer::update() {
-  // Read all available bytes
   while (serialBT.available()) {
     char ch = serialBT.read();
     inputBuffer += ch;
     lastBufferActivityMs = millis();
-
-    // Process on newline
     if (ch == '\n' || ch == '\r') {
       processBuffer();
       inputBuffer.clear();
       lastBufferActivityMs = 0;
       continue;
     }
-
-    // Process single-char relay commands immediately
     if (inputBuffer.length() == 1) {
       char c = inputBuffer[0];
       if (c == '1' || c == '2' || c == '3' || c == '4' || c == 'M' || c == 'm') {
@@ -35,8 +27,6 @@ void BluetoothServer::update() {
       }
     }
   }
-
-  // Timeout flush
   if (!inputBuffer.isEmpty() && (millis() - lastBufferActivityMs) > BT_FLUSH_TIMEOUT_MS) {
     processBuffer();
     inputBuffer.clear();
@@ -57,11 +47,7 @@ bool BluetoothServer::isConnected() const {
 void BluetoothServer::processBuffer() {
   String trimmed = inputBuffer;
   trimmed.trim();
-  if (trimmed.length() == 0) {
-    return;
-  }
-
-  // JSON detection
+  if (trimmed.length() == 0) return;
   if (trimmed.startsWith("{") && trimmed.indexOf("}") >= 0) {
     StaticJsonDocument<256> doc;
     DeserializationError error = deserializeJson(doc, trimmed);
@@ -72,17 +58,13 @@ void BluetoothServer::processBuffer() {
     }
     return;
   }
-
-  // Terminal command
   handleTerminalCommand(trimmed);
 }
 
 void BluetoothServer::handleTerminalCommand(const String& command) {
   String cmd = command;
   cmd.toUpperCase();
-
   Serial.println("[BT] Command: " + cmd);
-
   if (cmd == "1") {
     serialBT.println("RELAY 1 TOGGLED");
   } else if (cmd == "2") {
@@ -108,5 +90,4 @@ void BluetoothServer::handleTerminalCommand(const String& command) {
 
 void BluetoothServer::handleJsonCommand(const JsonDocument& doc) {
   Serial.println("[BT] JSON received");
-  // Command processing handled by main firmware
 }

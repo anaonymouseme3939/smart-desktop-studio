@@ -40,4 +40,4 @@ private:
   void handleIncomingUdp();
 };
 
-#endif // STUDIO_NETWORK_MANAGER_H
+#endif

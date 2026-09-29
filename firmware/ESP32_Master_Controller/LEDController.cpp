@@ -12,11 +12,9 @@ LEDController::LEDController()
     dropDirection(true),
     clusterPos(0),
     clusterDirection(1) {
-  // Initialize LED array
   for (size_t i = 0; i < NUM_LEDS; ++i) {
     leds[i] = CRGB::Black;
   }
-  // Initialize Hyperion buffer
   for (size_t i = 0; i < NUM_LEDS * 3; ++i) {
     hyperionBuffer[i] = 0;
   }
@@ -61,7 +59,6 @@ void LEDController::update(uint8_t vuLevel) {
     default:
       renderOff();
   }
-
   FastLED.show();
 }
 
@@ -132,7 +129,6 @@ void LEDController::renderHyperion() {
     }
     return;
   }
-
   for (size_t i = 0; i < NUM_LEDS; ++i) {
     const size_t idx = i * 3;
     leds[i] = CRGB(hyperionBuffer[idx], hyperionBuffer[idx + 1], hyperionBuffer[idx + 2]);
@@ -142,10 +138,9 @@ void LEDController::renderHyperion() {
 void LEDController::renderAudioVU(uint8_t vuLevel) {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   const uint8_t lit = map(vuLevel, 0, 255, 0, NUM_LEDS);
-
   for (uint8_t i = 0; i < NUM_LEDS; ++i) {
     if (i < lit) {
-      uint8_t hue = map(i, 0, NUM_LEDS - 1, 96, 0); // green to red
+      uint8_t hue = map(i, 0, NUM_LEDS - 1, 96, 0);
       leds[i] = CHSV(hue, 255, 255);
     }
   }
@@ -153,15 +148,12 @@ void LEDController::renderAudioVU(uint8_t vuLevel) {
 
 void LEDController::renderDropStack() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
-
   if (dropStackFill >= NUM_LEDS) {
     dropStackFill = 0;
   }
-
   for (uint8_t i = 0; i < dropStackFill; ++i) {
     leds[i] = CRGB::Aqua;
   }
-
   dropStackPos = (dropStackPos + 1) % NUM_LEDS;
   if (dropStackPos == 0) {
     dropStackFill = constrain((uint8_t)(dropStackFill + 1), 0, NUM_LEDS);
@@ -185,16 +177,13 @@ void LEDController::renderVelocityChaser() {
 void LEDController::renderBouncingCluster() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   const uint8_t clusterSize = 6;
-
   if (clusterPos >= NUM_LEDS - clusterSize) {
     clusterDirection = 0;
   }
   if (clusterPos == 0) {
     clusterDirection = 1;
   }
-
-  clusterPos += clusterDirection ? 1 : 255; // 255 wraps as unsigned -1
-
+  clusterPos += clusterDirection ? 1 : 255;
   for (uint8_t i = 0; i < clusterSize && clusterPos + i < NUM_LEDS; ++i) {
     leds[clusterPos + i] = CHSV(currentHue + i * 10, 255, 255);
   }
@@ -206,10 +195,8 @@ void LEDController::renderPoliceStrobe() {
   if (now - lastPoliceToggleMs > 80) {
     lastPoliceToggleMs = now;
   }
-
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   bool redSide = ((now / 80) % 2) == 0;
-
   for (uint8_t i = 0; i < NUM_LEDS; ++i) {
     if (i < NUM_LEDS / 2) {
       leds[i] = redSide ? CRGB::Red : CRGB::Blue;

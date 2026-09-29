@@ -25,4 +25,4 @@ private:
   uint32_t lastPeakTime;
 };
 
-#endif // AUDIO_ENGINE_H
+#endif

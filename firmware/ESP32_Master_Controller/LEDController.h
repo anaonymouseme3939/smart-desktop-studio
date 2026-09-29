@@ -59,4 +59,4 @@ private:
   void renderSolid();
 };
 
-#endif // LED_CONTROLLER_H
+#endif

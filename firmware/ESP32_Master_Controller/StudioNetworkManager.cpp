@@ -11,8 +11,6 @@ StudioNetworkManager::StudioNetworkManager()
 void StudioNetworkManager::begin() {
   Serial.println("[NET] Initializing network manager...");
   loadCredentials();
-
-  // Try WiFi connection
   WiFi.mode(WIFI_STA);
   if (!connectToWifi(ssid1, pass1)) {
     Serial.println("[NET] WiFi1 failed, trying WiFi2...");
@@ -21,18 +19,13 @@ void StudioNetworkManager::begin() {
       startSoftAP();
     }
   }
-
-  // Start WebSocket server
   wsServer.begin();
   Serial.println("[NET] WebSocket server started on port " + String(WEBSOCKET_PORT));
-
-  // Start UDP for Hyperion
   udp.begin(HYPERION_UDP_PORT);
   Serial.println("[NET] UDP server started on port " + String(HYPERION_UDP_PORT));
 }
 
 void StudioNetworkManager::update() {
-  // Check WiFi status periodically
   if (millis() - lastWiFiCheck > 10000) {
     if (WiFi.getMode() == WIFI_STA && WiFi.status() != WL_CONNECTED) {
       Serial.println("[NET] WiFi disconnected, attempting reconnect...");
@@ -40,13 +33,9 @@ void StudioNetworkManager::update() {
     }
     lastWiFiCheck = millis();
   }
-
-  // Handle WebSocket
   if (!wsClient || !wsClient.connected()) {
     wsClient = wsServer.available();
   }
-
-  // Handle UDP (Hyperion)
   handleIncomingUdp();
 }
 
@@ -56,14 +45,12 @@ void StudioNetworkManager::configureWiFi(const String& inSsid1, const String& in
   pass1 = inPass1;
   ssid2 = inSsid2;
   pass2 = inPass2;
-
   preferences.begin("smartdesk", false);
   preferences.putString("wifi1_ssid", ssid1);
   preferences.putString("wifi1_pass", pass1);
   preferences.putString("wifi2_ssid", ssid2);
   preferences.putString("wifi2_pass", pass2);
   preferences.end();
-
   Serial.println("[NET] WiFi credentials updated");
 }
 
@@ -112,7 +99,6 @@ void StudioNetworkManager::loadCredentials() {
 bool StudioNetworkManager::connectToWifi(const String& ssid, const String& pass) {
   Serial.println("[NET] Attempting WiFi: " + ssid);
   WiFi.begin(ssid.c_str(), pass.c_str());
-
   const uint32_t start = millis();
   while (millis() - start < WIFI_TIMEOUT_MS) {
     if (WiFi.status() == WL_CONNECTED) {
@@ -122,7 +108,6 @@ bool StudioNetworkManager::connectToWifi(const String& ssid, const String& pass)
     }
     delay(250);
   }
-
   Serial.println("[NET] WiFi connection timeout");
   return false;
 }
@@ -132,10 +117,8 @@ void StudioNetworkManager::handleIncomingUdp() {
   if (packetSize <= 0) {
     return;
   }
-
   if (packetSize >= NUM_LEDS * 3) {
     uint8_t packet[NUM_LEDS * 3];
     udp.read(packet, packetSize);
-    // Hyperion data processed by main firmware
   }
 }
